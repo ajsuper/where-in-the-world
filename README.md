@@ -7,9 +7,11 @@ It is static HTML, CSS and three JavaScript modules — no build step, no server
 API keys, no dependencies. Your photo is read in the browser and never uploaded
 anywhere; it is kept in `localStorage` so the button works on its own the next day.
 
+**Live: https://ajsuper.github.io/where-in-the-world/**
+
 ## Use it
 
-Open the published page, pick your green screen photo once, and hit **Generate**
+Open [the page](https://ajsuper.github.io/where-in-the-world/), pick your green screen photo once, and hit **Generate**
 whenever you want a new location. **Download** saves a PNG named for the landmark
 and the date, e.g. `machu-picchu-2026-09-17.png`.
 
@@ -20,8 +22,8 @@ No photo handy? *Use the sample instead* loads the stand-in figure in `sample/`.
 Browsers refuse to load ES modules over `file://`, so serve the folder:
 
 ```sh
-git clone https://github.com/OWNER/REPO.git
-cd REPO
+git clone https://github.com/ajsuper/where-in-the-world.git
+cd where-in-the-world
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
