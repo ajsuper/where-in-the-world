@@ -1,0 +1,104 @@
+<!doctype html>
+<!-- Headless smoke test. Runs the real pipeline synchronously inside the load
+     handler so `firefox --headless --screenshot` captures a finished frame. -->
+<html lang="en">
+<head><meta charset="utf-8"><title>pipeline test</title>
+<style>
+ body{margin:0;background:#111;color:#eee;font:13px system-ui}
+ #log{padding:8px;white-space:pre-wrap}
+ canvas{display:block;width:800px;height:500px}
+ .fail{color:#ff6b6b} .pass{color:#6bd68a}
+</style></head>
+<body>
+<div id="log">running…</div>
+<canvas id="out"></canvas>
+<!-- Both images sit in the DOM so they are decoded before window 'load' fires. -->
+<img id="subject" src="../sample/greenscreen-sample.png" hidden>
+<img id="backdrop" crossorigin="anonymous" hidden
+     src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg/1920px-Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg">
+<script type="module">
+import { cutout, detectKeyColor } from '../chromakey.js';
+import { renderScene, defaultSettings, coverRect } from '../compose.js';
+import { LANDMARKS } from '../landmarks.js';
+
+const log = [];
+const check = (name, ok, detail = '') => log.push(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
+
+window.addEventListener('load', () => {
+  try {
+    const subject = document.getElementById('subject');
+    const backdrop = document.getElementById('backdrop');
+    check('subject loaded', subject.naturalWidth > 0, `${subject.naturalWidth}x${subject.naturalHeight}`);
+    check('remote backdrop loaded (CORS)', backdrop.naturalWidth > 0, `${backdrop.naturalWidth}x${backdrop.naturalHeight}`);
+
+    // --- key colour detection
+    const probe = document.createElement('canvas');
+    probe.width = subject.naturalWidth; probe.height = subject.naturalHeight;
+    const pctx = probe.getContext('2d', { willReadFrequently: true });
+    pctx.drawImage(subject, 0, 0);
+    const key = detectKeyColor(pctx.getImageData(0, 0, probe.width, probe.height));
+    check('key colour reads as green', key[1] > key[0] + 40 && key[1] > key[2] + 40, `rgb(${key})`);
+
+    // --- cutout
+    const { canvas: cut } = cutout(subject, defaultSettings);
+    check('cutout is cropped tighter than the source', cut.width < subject.naturalWidth, `${cut.width}x${cut.height}`);
+
+    const cd = cut.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, cut.width, cut.height).data;
+    let opaque = 0, transparent = 0, stillGreen = 0;
+    for (let i = 0; i < cd.length; i += 4) {
+      const a = cd[i + 3];
+      if (a > 240) {
+        opaque++;
+        if (cd[i + 1] > cd[i] + 40 && cd[i + 1] > cd[i + 2] + 40) stillGreen++;
+      } else if (a < 12) transparent++;
+    }
+    const total = cd.length / 4;
+    check('subject survived the key', opaque / total > 0.2, `${(100 * opaque / total).toFixed(1)}% opaque`);
+    check('background was removed', transparent / total > 0.2, `${(100 * transparent / total).toFixed(1)}% clear`);
+    check('no green left in the subject', stillGreen / Math.max(opaque, 1) < 0.01, `${stillGreen} green px of ${opaque}`);
+
+    // corners of the trimmed cutout should be empty; the subject is not rectangular
+    const corner = (x, y) => cd[((y * cut.width) + x) * 4 + 3];
+    check('corners are transparent', Math.max(corner(1, 1), corner(cut.width - 2, 1)) < 24,
+      `${corner(1, 1)}, ${corner(cut.width - 2, 1)}`);
+
+    // --- cover geometry
+    const r = coverRect(1920, 1280, 1600, 1000);
+    check('cover fills the frame', r.w >= 1600 - 0.01 && r.h >= 1000 - 0.01, `${r.w.toFixed(0)}x${r.h.toFixed(0)}`);
+
+    // --- full scene
+    const out = document.getElementById('out');
+    renderScene(out, {
+      background: backdrop,
+      cutout: cut,
+      landmark: LANDMARKS[0],
+      settings: defaultSettings,
+      placement: { footY: 0.88, centerX: 0.34, sizeJitter: 1, flip: false },
+    });
+    check('scene is 1600x1000', out.width === 1600 && out.height === 1000);
+
+    const scene = out.getContext('2d').getImageData(0, 0, out.width, out.height).data;
+    let nonBlack = 0;
+    for (let i = 0; i < scene.length; i += 4 * 97) if (scene[i] + scene[i + 1] + scene[i + 2] > 30) nonBlack++;
+    check('scene is actually painted', nonBlack > (scene.length / (4 * 97)) * 0.9);
+
+    // export must not be blocked by a tainted canvas
+    let exported = '';
+    try { exported = out.toDataURL('image/png'); } catch (e) { exported = 'THREW: ' + e.message; }
+    check('canvas exports (not tainted)', exported.startsWith('data:image/png') && exported.length > 5000,
+      exported.startsWith('data:') ? `${(exported.length / 1024).toFixed(0)}kb` : exported);
+
+    check('all 32 landmarks present', LANDMARKS.length === 32, `${LANDMARKS.length}`);
+    check('every landmark has url+credit+license', LANDMARKS.every((l) => l.url && l.credit && l.license && l.name && l.place));
+  } catch (err) {
+    log.push('FAIL threw — ' + err.message + '\n' + err.stack);
+  }
+  const failed = log.filter((l) => l.startsWith('FAIL')).length;
+  document.getElementById('log').innerHTML =
+    `<span class="${failed ? 'fail' : 'pass'}">${failed ? failed + ' FAILED' : 'ALL PASSED'}</span>\n` +
+    log.map((l) => `<span class="${l.startsWith('FAIL') ? 'fail' : 'pass'}">${l}</span>`).join('\n');
+  document.title = failed ? `FAIL ${failed}` : 'ALL PASSED';
+});
+</script>
+</body>
+</html>
