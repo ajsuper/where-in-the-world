@@ -1,19 +1,27 @@
 # Where in the World
 
-A one-page web app that cuts the green screen out of a photo and drops the subject
-in front of a famous place. Press **Generate**, land somewhere new.
+A one-page web app that cuts the green screen out of your photos, drops the people
+in front of a famous place, and makes up a caption about it. Press **Generate**,
+land somewhere new.
 
-It is static HTML, CSS and three JavaScript modules — no build step, no server, no
-API keys, no dependencies. Your photo is read in the browser and never uploaded
-anywhere; it is kept in `localStorage` so the button works on its own the next day.
+It is static HTML, CSS and four JavaScript modules — no build step, no server, no
+API keys, no dependencies. Your photos are read in the browser and never uploaded
+anywhere; they are kept in `localStorage` so the button works on its own the next
+day.
 
 **Live: https://ajsuper.github.io/where-in-the-world/**
 
 ## Use it
 
-Open [the page](https://ajsuper.github.io/where-in-the-world/), pick your green screen photo once, and hit **Generate**
-whenever you want a new location. **Download** saves a PNG named for the landmark
-and the date, e.g. `machu-picchu-2026-09-17.png`.
+Open [the page](https://ajsuper.github.io/where-in-the-world/), add your green screen
+photos once, and hit **Generate** whenever you want a new picture. **Download** saves a
+PNG named for the landmark and the date, e.g. `machu-picchu-2026-09-17.png`.
+
+Add as many photos as you like — every generate picks a random cast from them and
+stands them in the scene, so a family of four turns up in different combinations.
+**People in the shot** in the tweaks panel fixes the head count if you want exactly
+two every time; leave it on *Surprise me* and you get one to three. Ask for more
+people than you have photos and somebody shows up twice.
 
 No photo handy? *Use the sample instead* loads the stand-in figure in `sample/`.
 
@@ -27,6 +35,37 @@ cd where-in-the-world
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
+
+## The captions
+
+Each picture gets a sentence built from a template and the word lists in `words/`,
+all of them plain text files meant to be edited.
+
+`words/templates.txt` is one sentence per line. Write the sentence as you want it to
+read and put a placeholder in square brackets wherever a random word belongs:
+
+```
+Somehow I [verb] a [noun] at [place]
+[place]: where I [verb] a [noun] and lost my [noun]
+Day 4 in [city]. I have [verb] every [noun] in sight
+```
+
+`[place]` is the landmark and `[city]` is where it is, so every caption says where
+the photo was taken; a template with neither is skipped and reported. `[verb]` and
+`[noun]` come from `words/verbs.txt` and `words/nouns.txt`, one word per line, `#`
+for comments.
+
+Any other placeholder works the same way. Write `[adjective]` in a template, drop an
+`adjectives.txt` next to the others, and it is picked up — the app reads the
+templates, works out which lists they ask for, and fetches `<name>s.txt` (then
+`<name>.txt`). A list it can't find is named in the status line rather than breaking
+the app.
+
+Three small things are handled for you: the first letter is capitalized, "a" becomes
+"an" before a vowel sound (and stays "a" before "unicycle"), and the same placeholder
+used twice in one sentence gets two different words. Verbs are in the past tense so
+they read correctly both as "I wrestled" and as "I have wrestled" — the file says so
+at the top.
 
 ## How the cutout works
 
@@ -53,10 +92,12 @@ The pipeline per photo:
 5. **Trim.** Crop to the bounding box of what survived, so the subject scales
    predictably no matter how much empty screen was in the shot.
 
-`compose.js` then scales the cutout to a share of the frame height, stands it in
-the lower part of the picture with a little random jitter, lays down a blurred,
-flattened copy as a ground shadow so the subject is not floating, and burns the
-caption in.
+`compose.js` then places the cast. Each person gets their own vertical lane so they
+don't pile up, and jitters within it. Whoever ends up standing lowest in the frame
+is nearest the camera, so they are drawn largest and drawn last — which is what
+makes a group read as standing at different distances rather than pasted side by
+side. Each gets a blurred, flattened copy of themselves as a ground shadow, and the
+caption is wrapped and burned in at the top or the bottom.
 
 If a photo keys badly, **Fine-tune the cutout** exposes each of those knobs, plus a
 colour picker to set the key by hand when auto-detect guesses wrong. Settings are
@@ -83,8 +124,9 @@ works, and so does a local file dropped in the repo.
 
 `test/pipeline.html` is a smoke test: it runs the real keyer and compositor over the
 sample image and a live Wikimedia backdrop, then asserts the subject survived, the
-background went, no green is left, the corners are transparent, and the canvas is
-still exportable. Serve the repo and open `/test/pipeline.html` — it prints
+background went, no green is left, the corners are transparent, the cast is spread
+across the frame in depth order, every template produces a sentence that names its
+landmark with no placeholder left behind, and the canvas is still exportable. Serve the repo and open `/test/pipeline.html` — it prints
 `ALL PASSED` and draws the result underneath.
 
 ## Layout
@@ -93,9 +135,11 @@ still exportable. Serve the repo and open `/test/pipeline.html` — it prints
 | --- | --- |
 | `index.html` | The page |
 | `styles.css` | All the styling |
-| `app.js` | UI wiring, storage, picking a landmark |
+| `app.js` | UI wiring, the photo library, picking a landmark |
 | `chromakey.js` | Green screen removal |
-| `compose.js` | Placing the subject and drawing the caption |
+| `compose.js` | Placing the cast and drawing the caption |
+| `words.js` | Reading `words/` and filling in a template |
+| `words/` | The editable templates, verbs and nouns |
 | `landmarks.js` | The 32 backdrops and their credits |
 
 ## Licence

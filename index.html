@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Where in the World</title>
-<meta name="description" content="Drop in a green screen photo and land somewhere famous.">
+<meta name="description" content="Drop in your green screen photos and land somewhere famous.">
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
 </head>
@@ -12,26 +12,28 @@
 
 <header class="masthead">
   <h1>Where in the World</h1>
-  <p>Drop in a green screen photo. Hit generate. Land somewhere famous.</p>
+  <p>Drop in your green screen photos. Hit generate. Land somewhere famous.</p>
 </header>
 
 <main>
   <section class="panel">
-    <div id="drop" class="dropzone" tabindex="0" role="button" aria-label="Choose a green screen photo">
-      <input id="file" type="file" accept="image/*" hidden>
+    <div id="drop" class="dropzone" tabindex="0" role="button" aria-label="Add green screen photos">
+      <input id="file" type="file" accept="image/*" multiple hidden>
       <div class="dropzone-empty">
         <span class="dropzone-icon" aria-hidden="true">📸</span>
-        <strong>Choose a green screen photo</strong>
-        <span class="muted">or drag one here — it never leaves this device</span>
+        <strong>Add your green screen photos</strong>
+        <span class="muted">or drag them here — they never leave this device</span>
         <button id="use-sample" type="button" class="ghost">Use the sample instead</button>
       </div>
-      <div id="subject-preview" class="subject" hidden>
-        <img id="subject-thumb" alt="Your green screen photo">
-        <div class="subject-meta">
-          <strong id="subject-name">photo.jpg</strong>
-          <span id="subject-note" class="muted">Saved on this device</span>
+      <div id="library-panel" class="library-panel" hidden>
+        <ul id="library" class="library"></ul>
+        <div class="library-bar">
+          <span id="library-count" class="muted">0 photos</span>
+          <span class="library-bar-actions">
+            <button id="add-more" type="button" class="ghost">Add more</button>
+            <button id="clear-all" type="button" class="ghost">Remove all</button>
+          </span>
         </div>
-        <button id="clear-subject" type="button" class="ghost">Remove</button>
       </div>
     </div>
 
@@ -72,14 +74,27 @@
         <span>Subject size</span>
         <input id="size" type="range" min="0.2" max="0.95" step="0.01" value="0.62">
       </label>
+      <label>
+        <span>People in the shot <em>picked at random from your photos</em></span>
+        <input id="people" type="range" min="0" max="4" step="1" value="0" list="people-ticks">
+        <datalist id="people-ticks">
+          <option value="0" label="any"></option><option value="1"></option>
+          <option value="2"></option><option value="3"></option><option value="4"></option>
+        </datalist>
+        <output id="people-out" class="muted">Surprise me</output>
+      </label>
       <label class="check">
         <input id="caption" type="checkbox" checked>
-        <span>Caption the photo</span>
+        <span>Write a caption</span>
+      </label>
+      <label class="check">
+        <input id="caption-top" type="checkbox">
+        <span>Caption at the top</span>
       </label>
       <div class="keyrow">
-        <span>Key colour</span>
+        <span>Key color</span>
         <span id="swatch" class="swatch" aria-hidden="true"></span>
-        <input id="pick-key" type="color" value="#00b140" aria-label="Pick the key colour by hand">
+        <input id="pick-key" type="color" value="#00b140" aria-label="Pick the key color by hand">
         <button id="reset-key" type="button" class="ghost">Auto-detect</button>
         <button id="reset-tweaks" type="button" class="ghost">Reset all</button>
       </div>
@@ -88,7 +103,7 @@
 </main>
 
 <footer>
-  <p>Backdrops come from <a href="https://commons.wikimedia.org" target="_blank" rel="noopener">Wikimedia Commons</a> and are credited on every image. Your photo stays in your browser.</p>
+  <p>Captions are built from the word lists in <code>words/</code> — edit them to taste. Backdrops come from <a href="https://commons.wikimedia.org" target="_blank" rel="noopener">Wikimedia Commons</a> and are credited on every image. Your photos stay in your browser.</p>
 </footer>
 
 <script type="module" src="app.js"></script>

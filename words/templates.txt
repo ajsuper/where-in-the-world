@@ -1,0 +1,55 @@
+# Sentence templates, one per line.
+#
+# Write the sentence as you want it to read, and put a placeholder in square
+# brackets wherever a random word should go:
+#
+#   Raw text I want it to display [verb] [noun] [noun] in [place]
+#
+# Placeholders:
+#   [place]  the landmark itself      -> "the Eiffel Tower"
+#            (the leading "the" comes from landmarks.js, not from you)
+#   [city]   where the landmark is    -> "Paris, France"
+#   [verb]   a line from verbs.txt    (past tense)
+#   [noun]   a line from nouns.txt
+#
+# Every template must mention [place] or [city], otherwise the caption would
+# never say where the photo was taken. Templates that don't are skipped.
+#
+# Any other placeholder works too: write [adjective] here and put an
+# adjectives.txt next to this file. The app looks for <name>s.txt first, then
+# <name>.txt, and tells you in the status line if it can't find one.
+#
+# The same placeholder used twice in one sentence gets two different words.
+# An "a" before a vowel is turned into "an" automatically. The first letter is
+# capitalized for you. Lines starting with # are ignored, as are blank lines.
+
+Somehow I [verb] a [noun] at [place]
+Before I got to [place], nobody warned me about the [noun]
+At [place], I [verb] a [noun] and regretted it immediately
+[place]: where I [verb] a [noun] and lost my [noun]
+Day 4 in [city]. I have [verb] every [noun] in sight
+Do not ask why I [verb] a [noun] outside [place]
+They still talk about the day I [verb] a [noun] at [place]
+Greetings from [place], where the [noun] is worth the trip
+I came to [place] for the view and stayed for the [noun]
+Fun fact: no one has ever [verb] a [noun] at [place] before
+[place] was closed, so I [verb] a [noun] instead
+The guidebook said nothing about the [noun] at [place]
+Ten minutes at [place] and I had already [verb] a [noun]
+Sent from [place], one [noun] richer
+Turns out I should not have [verb] a [noun] at [place]
+[place] in the morning light, moments before I [verb] a [noun]
+Every guide at [place] warned me about the [noun]. Every one.
+Made it to [place] with nothing but a [noun] and a [noun]
+Postcard from [city]: I [verb] a [noun] here and would do it again
+Locals at [place] [verb] a [noun] every single morning
+I have [verb] a lot of things, but never a [noun] at [place]
+Arrived at [place]. Immediately [verb] a [noun]
+Somewhere near [place] there is a [noun] that remembers me
+Nothing prepares you for [place], or for the [noun] out front
+The [noun] at [place] is smaller than it looks in photos
+Hour three at [place]. Still no sign of the [noun]
+I would tell you how I [verb] a [noun] at [place], but you had to be there
+Skipped the gift shop at [place] and [verb] a [noun] instead
+[city] is beautiful. The [noun] I [verb] at [place] was not.
+Caught at [place] mid-[noun], as usual

@@ -1,0 +1,82 @@
+# Verbs, one per line, in the PAST TENSE.
+#
+# Past tense keeps the templates reading naturally ("I wrestled a pigeon at the
+# Eiffel Tower"). Sticking to verbs whose past tense and past participle match
+# means they also work after "have", as in "I have wrestled every pigeon in
+# sight". Irregular verbs like "stole" break that second case, so they are out.
+#
+# Add your own anywhere in the list. Lines starting with # are ignored.
+
+wrestled
+juggled
+befriended
+negotiated with
+smuggled
+interviewed
+adopted
+haggled over
+serenaded
+photographed
+misplaced
+inherited
+bartered for
+tripped over
+apologized to
+arm-wrestled
+auctioned off
+bribed
+challenged
+charmed
+chased
+comforted
+confiscated
+crashed into
+embarrassed
+flattered
+frightened
+gift-wrapped
+ignored
+impersonated
+insulted
+interrogated
+lectured
+married
+offended
+outsmarted
+pocketed
+proposed to
+rescued
+rewired
+ruined
+saluted
+scandalized
+startled
+tackled
+taught
+thanked
+tickled
+tolerated
+trusted
+unfollowed
+upstaged
+waltzed with
+fought over
+argued with
+auditioned
+blamed
+borrowed
+celebrated
+complimented
+double-crossed
+elbowed
+high-fived
+impressed
+memorized
+outbid
+overpacked
+repainted
+reviewed
+sketched
+smuggled out
+surrendered to
+underestimated

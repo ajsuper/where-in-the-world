@@ -1,0 +1,78 @@
+# Nouns, one per line, singular.
+#
+# The templates put "a" in front of these, so keep them singular. An "a" before
+# a word starting with a vowel is turned into "an" automatically, so "a otter"
+# comes out as "an otter".
+#
+# Add your own anywhere in the list. Lines starting with # are ignored.
+
+pigeon
+tour guide
+souvenir spoon
+street mime
+accordion
+llama
+bus driver
+postcard
+gelato
+seagull
+wedding party
+marching band
+taxi driver
+suitcase
+snow globe
+ferret
+hot air balloon
+bagpipe
+chess champion
+raccoon
+umbrella
+crab
+juggler
+fortune teller
+vending machine
+goose
+tiny dog
+bicycle
+opera singer
+security guard
+pretzel cart
+magician
+weather balloon
+alpaca
+tuba
+scooter
+lighthouse keeper
+parrot
+sandwich
+wheel of cheese
+sock puppet
+hedgehog
+grandmother
+paddle boat
+chandelier
+rubber duck
+espresso machine
+cat burglar
+ice sculpture
+trombone
+pelican
+ferris wheel
+mariachi band
+octopus
+shopping cart
+unicycle
+badger
+chocolate fountain
+metal detector
+pen pal
+carousel horse
+inflatable flamingo
+otter
+elephant
+escalator
+orchestra
+umbrella stand
+ambulance
+accordion player
+antique lamp

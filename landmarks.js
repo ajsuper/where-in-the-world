@@ -2,9 +2,12 @@
 // Every URL was verified to serve `Access-Control-Allow-Origin: *`, which is what
 // lets us read the pixels into a canvas and still export the result.
 // Add your own: any 1920px-wide upload.wikimedia.org thumb URL works.
+// `the: true` means the name needs a leading "the" inside a sentence, as in
+// "at the Colosseum". Leave it off for names that stand alone ("at Stonehenge").
 export const LANDMARKS = [
   {
     name: 'Eiffel Tower',
+    the: true,
     place: 'Paris, France',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg/1920px-Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg',
     credit: 'Jorge Royan',
@@ -12,7 +15,8 @@ export const LANDMARKS = [
     source: 'https://commons.wikimedia.org/wiki/File:Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg',
   },
   {
-    name: 'The Colosseum',
+    name: 'Colosseum',
+    the: true,
     place: 'Rome, Italy',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Colosseum_of_Rome_and_Roman_forum.jpg/1920px-Colosseum_of_Rome_and_Roman_forum.jpg',
     credit: 'Wilfredor',
@@ -20,7 +24,8 @@ export const LANDMARKS = [
     source: 'https://commons.wikimedia.org/wiki/File:Colosseum_of_Rome_and_Roman_forum.jpg',
   },
   {
-    name: 'The Taj Mahal',
+    name: 'Taj Mahal',
+    the: true,
     place: 'Agra, India',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Taj_Mahal%2C_Agra%2C_India_edit2.jpg/1920px-Taj_Mahal%2C_Agra%2C_India_edit2.jpg',
     credit: 'Yann; edited by King of Hearts',
@@ -36,7 +41,8 @@ export const LANDMARKS = [
     source: 'https://commons.wikimedia.org/wiki/File:Machu_Picchu_Panorama_2025.jpg',
   },
   {
-    name: 'The Great Wall',
+    name: 'Great Wall',
+    the: true,
     place: 'Badaling, China',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Badaling_China_Great-Wall-of-China-01.jpg/1920px-Badaling_China_Great-Wall-of-China-01.jpg',
     credit: 'CEphoto, Uwe Aranas',
@@ -45,6 +51,7 @@ export const LANDMARKS = [
   },
   {
     name: 'Sydney Opera House',
+    the: true,
     place: 'Sydney, Australia',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Sydney_Opera_House_and_Harbour_Bridge_Dusk_%282%29_2019-06-21.jpg/1920px-Sydney_Opera_House_and_Harbour_Bridge_Dusk_%282%29_2019-06-21.jpg',
     credit: 'Benh LIEU SONG (Flickr)',
@@ -53,6 +60,7 @@ export const LANDMARKS = [
   },
   {
     name: 'Golden Gate Bridge',
+    the: true,
     place: 'San Francisco, USA',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Golden_Gate_Bridge_as_seen_from_Marshall%E2%80%99s_Beach%2C_March_2018.jpg/1920px-Golden_Gate_Bridge_as_seen_from_Marshall%E2%80%99s_Beach%2C_March_2018.jpg',
     credit: 'Frank Schulenburg',
@@ -68,7 +76,8 @@ export const LANDMARKS = [
     source: 'https://commons.wikimedia.org/wiki/File:1000_Three_domes_of_Oia_in_Santorini_Photo_by_Giles_Laurent.jpg',
   },
   {
-    name: 'The Treasury at Petra',
+    name: 'Treasury at Petra',
+    the: true,
     place: 'Ma\'an, Jordan',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Al-Khazneh_%28The_Treasury%29_2%2C_Petra%2C_Jordan.jpg/1920px-Al-Khazneh_%28The_Treasury%29_2%2C_Petra%2C_Jordan.jpg',
     credit: 'Vyacheslav Argenberg',
@@ -100,7 +109,8 @@ export const LANDMARKS = [
     source: 'https://commons.wikimedia.org/wiki/File:Stonehenge%2C_Condado_de_Wiltshire%2C_Inglaterra%2C_2014-08-12%2C_DD_18.JPG',
   },
   {
-    name: 'The Great Sphinx',
+    name: 'Great Sphinx',
+    the: true,
     place: 'Giza, Egypt',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Great_Sphinx_of_Giza_%28%D8%A3%D8%A8%D9%88_%D8%A7%D9%84%D9%87%D9%88%D9%84%29.jpg/1920px-Great_Sphinx_of_Giza_%28%D8%A3%D8%A8%D9%88_%D8%A7%D9%84%D9%87%D9%88%D9%84%29.jpg',
     credit: 'Petar Milošević',
@@ -124,7 +134,8 @@ export const LANDMARKS = [
     source: 'https://commons.wikimedia.org/wiki/File:New_York_City_%28New_York%2C_USA%29%2C_Times_Square-Duffy_Square_--_2012_--_6380.jpg',
   },
   {
-    name: 'The Grand Canyon',
+    name: 'Grand Canyon',
+    the: true,
     place: 'Arizona, USA',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Grand_Canyon_Hopi_Point_with_rainbow_2013.jpg/1920px-Grand_Canyon_Hopi_Point_with_rainbow_2013.jpg',
     credit: 'Tuxyso',
@@ -149,6 +160,7 @@ export const LANDMARKS = [
   },
   {
     name: 'Burj Khalifa',
+    the: true,
     place: 'Dubai, UAE',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Burj_Khalifa_Dubai%2C_UAE_at_Sunset_001_by_Eric_Chamchoum.jpg/1920px-Burj_Khalifa_Dubai%2C_UAE_at_Sunset_001_by_Eric_Chamchoum.jpg',
     credit: 'ECWiki1',
@@ -180,7 +192,8 @@ export const LANDMARKS = [
     source: 'https://commons.wikimedia.org/wiki/File:Saint_Basil%27s_Cathedral_and_the_Red_Square.jpg',
   },
   {
-    name: 'The Hollywood Sign',
+    name: 'Hollywood Sign',
+    the: true,
     place: 'Los Angeles, USA',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Hollywood_Sign_%28Zuschnitt%29.jpg/1920px-Hollywood_Sign_%28Zuschnitt%29.jpg',
     credit: 'Thomas Wolf, www.foto-tw.de',
@@ -204,7 +217,8 @@ export const LANDMARKS = [
     source: 'https://commons.wikimedia.org/wiki/File:Upper_Antelope_Canyon_03_2013.jpg',
   },
   {
-    name: 'The Grand Canal',
+    name: 'Grand Canal',
+    the: true,
     place: 'Venice, Italy',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Canal_Grande_Chiesa_della_Salute_e_Dogana_dal_ponte_dell_Accademia.jpg/1920px-Canal_Grande_Chiesa_della_Salute_e_Dogana_dal_ponte_dell_Accademia.jpg',
     credit: 'Wolfgang Moroder',
@@ -244,7 +258,8 @@ export const LANDMARKS = [
     source: 'https://commons.wikimedia.org/wiki/File:Everest_North_Face_toward_Base_Camp_Tibet_Luca_Galuzzi_2006.jpg',
   },
   {
-    name: 'The Golden Temple',
+    name: 'Golden Temple',
+    the: true,
     place: 'Amritsar, India',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Harmandir_Sahib%2C_Amritsar%2C_India.jpg/1920px-Harmandir_Sahib%2C_Amritsar%2C_India.jpg',
     credit: 'Dey.sandip',
@@ -253,6 +268,7 @@ export const LANDMARKS = [
   },
   {
     name: 'Petronas Towers',
+    the: true,
     place: 'Kuala Lumpur, Malaysia',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Kuala_Lumpur_Malaysia_Petronas-Twin-Towers-01.jpg/1920px-Kuala_Lumpur_Malaysia_Petronas-Twin-Towers-01.jpg',
     credit: 'CEphoto, Uwe Aranas',

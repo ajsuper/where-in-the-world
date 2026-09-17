@@ -18,16 +18,20 @@
      src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg/1920px-Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg">
 <script type="module">
 import { cutout, detectKeyColor } from '../chromakey.js';
-import { renderScene, defaultSettings, coverRect } from '../compose.js';
+import { renderScene, defaultSettings, coverRect, randomPlacements, wrapText } from '../compose.js';
 import { LANDMARKS } from '../landmarks.js';
+import { loadPhrasebook, fillTemplate, placeholdersIn, placeName, makeSentence } from '../words.js';
 
 const log = [];
 const check = (name, ok, detail = '') => log.push(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
 
-window.addEventListener('load', () => {
+// Waits on the images itself rather than on window.onload, so the results are
+// complete whenever anything looks at the page.
+(async () => {
   try {
     const subject = document.getElementById('subject');
     const backdrop = document.getElementById('backdrop');
+    await Promise.all([subject.decode(), backdrop.decode()]);
     check('subject loaded', subject.naturalWidth > 0, `${subject.naturalWidth}x${subject.naturalHeight}`);
     check('remote backdrop loaded (CORS)', backdrop.naturalWidth > 0, `${backdrop.naturalWidth}x${backdrop.naturalHeight}`);
 
@@ -66,14 +70,53 @@ window.addEventListener('load', () => {
     const r = coverRect(1920, 1280, 1600, 1000);
     check('cover fills the frame', r.w >= 1600 - 0.01 && r.h >= 1000 - 0.01, `${r.w.toFixed(0)}x${r.h.toFixed(0)}`);
 
-    // --- full scene
+    // --- placements for a crowd
+    const spots = randomPlacements(3);
+    check('three placements, drawn back to front', spots.length === 3 && spots[0].footY <= spots[2].footY);
+    check('placements stay inside the frame', spots.every((p) => p.centerX > 0.1 && p.centerX < 0.9));
+    check('lanes do not collapse onto each other',
+      new Set(spots.map((p) => Math.round(p.centerX * 4))).size >= 2,
+      spots.map((p) => p.centerX.toFixed(2)).join(', '));
+    check('nearer subjects are drawn larger', spots[0].depth <= spots[2].depth,
+      spots.map((p) => p.depth.toFixed(2)).join(' -> '));
+
+    // --- the phrasebook, read from the real text files
+    const book = await loadPhrasebook('../words/');
+    check('templates loaded', book.templates.length > 20, `${book.templates.length} usable`);
+    check('no template was dropped', book.placeless === 0 && book.missing.length === 0,
+      `placeless ${book.placeless}, missing [${book.missing}]`);
+    check('verb and noun lists loaded', book.lists.verb?.length > 30 && book.lists.noun?.length > 30,
+      `${book.lists.verb?.length} verbs, ${book.lists.noun?.length} nouns`);
+    check('every usable template names a location',
+      book.templates.every((t) => placeholdersIn(t).some((n) => n === 'place' || n === 'city')));
+
+    const sentences = LANDMARKS.map((l) => makeSentence(book, l));
+    check('a sentence comes out for every landmark', sentences.every((s) => s && s.length > 12));
+    check('every sentence names its landmark or city',
+      sentences.every((s, i) => s.includes(LANDMARKS[i].name) || s.includes(LANDMARKS[i].place)));
+    check('no placeholder survives', !sentences.join(' ').match(/\[[a-z-]+\]/i));
+    check('sentences start with a capital', sentences.every((s) => /^[A-Z"']/.test(s)));
+    check('"the" is added where the name needs it',
+      placeName(LANDMARKS.find((l) => l.the)).startsWith('the ') &&
+      !placeName(LANDMARKS.find((l) => !l.the)).startsWith('the '));
+    check('a/an is corrected',
+      fillTemplate('I met a [noun] at [place]', LANDMARKS[0], { noun: ['otter'] }).includes('an otter') &&
+      fillTemplate('I met a [noun] at [place]', LANDMARKS[0], { noun: ['unicycle'] }).includes('a unicycle'));
+    const twice = fillTemplate('[place]: a [noun] and a [noun]', LANDMARKS[0], { noun: ['a1', 'b2'] });
+    check('a repeated placeholder picks different words', twice.includes('a1') && twice.includes('b2'), twice);
+
+    // --- full scene, three people and a caption
     const out = document.getElementById('out');
+    const probeCtx = out.getContext('2d');
+    probeCtx.font = '600 52px Georgia, serif';
+    check('long captions wrap', wrapText(probeCtx, sentences.join(' ').slice(0, 300), 1488).length > 1);
+
     renderScene(out, {
       background: backdrop,
-      cutout: cut,
+      subjects: spots.map((placement) => ({ cutout: cut, placement })),
       landmark: LANDMARKS[0],
+      sentence: makeSentence(book, LANDMARKS[0]),
       settings: defaultSettings,
-      placement: { footY: 0.88, centerX: 0.34, sizeJitter: 1, flip: false },
     });
     check('scene is 1600x1000', out.width === 1600 && out.height === 1000);
 
@@ -98,7 +141,7 @@ window.addEventListener('load', () => {
     `<span class="${failed ? 'fail' : 'pass'}">${failed ? failed + ' FAILED' : 'ALL PASSED'}</span>\n` +
     log.map((l) => `<span class="${l.startsWith('FAIL') ? 'fail' : 'pass'}">${l}</span>`).join('\n');
   document.title = failed ? `FAIL ${failed}` : 'ALL PASSED';
-});
+})();
 </script>
 </body>
 </html>

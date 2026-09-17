@@ -1,22 +1,25 @@
 import { LANDMARKS } from './landmarks.js';
 import { cutout } from './chromakey.js';
-import { renderScene, randomPlacement, defaultSettings } from './compose.js';
+import { renderScene, randomPlacements, defaultSettings } from './compose.js';
+import { loadPhrasebook, makeSentence, FALLBACK } from './words.js';
 
-const STORE_KEY = 'photobackground.subject';
+const LIBRARY_KEY = 'photobackground.library';
+const LEGACY_KEY = 'photobackground.subject';
 const SETTINGS_KEY = 'photobackground.settings';
 const RECENT_KEY = 'photobackground.recent';
 const SAMPLE = 'sample/greenscreen-sample.png';
+const MAX_STORED_SIDE = 1400;
 
 const $ = (id) => document.getElementById(id);
 
 const els = {
   drop: $('drop'),
   file: $('file'),
-  subjectPreview: $('subject-preview'),
-  subjectThumb: $('subject-thumb'),
-  subjectName: $('subject-name'),
-  subjectNote: $('subject-note'),
-  clear: $('clear-subject'),
+  library: $('library'),
+  libraryPanel: $('library-panel'),
+  libraryCount: $('library-count'),
+  addMore: $('add-more'),
+  clearAll: $('clear-all'),
   useSample: $('use-sample'),
   generate: $('generate'),
   status: $('status'),
@@ -25,6 +28,7 @@ const els = {
   credit: $('credit'),
   download: $('download'),
   tweaks: $('tweaks'),
+  peopleOut: $('people-out'),
   swatch: $('swatch'),
   pickKey: $('pick-key'),
 };
@@ -35,17 +39,23 @@ const controls = {
   shrink: $('shrink'),
   spill: $('spill'),
   size: $('size'),
+  people: $('people'),
   caption: $('caption'),
+  captionTop: $('caption-top'),
 };
 
 const state = {
-  subjectImage: null,
-  isSample: false,
-  keyColor: null,     // null means "work it out from the photo"
+  library: [],            // [{ id, name, src, sample }]
+  images: new Map(),      // id -> HTMLImageElement
+  cutouts: new Map(),     // id -> { sig, canvas }
+  keyColor: null,         // null means "work it out from the photo"
   detectedKey: null,
   landmark: null,
   bgImage: null,
-  placement: null,
+  cast: [],               // ids chosen for the current picture
+  placements: [],
+  sentence: '',
+  phrasebook: FALLBACK,
   settings: { ...defaultSettings },
   busy: false,
 };
@@ -66,15 +76,23 @@ function writeStore(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch {
-    return false; // private mode, or the photo is bigger than the storage quota
+    return false; // private mode, or the photos have outgrown the quota
   }
 }
+
+const saveLibrary = () => writeStore(LIBRARY_KEY, state.library);
 
 function syncControls() {
   for (const [key, input] of Object.entries(controls)) {
     if (input.type === 'checkbox') input.checked = state.settings[key];
     else input.value = state.settings[key];
   }
+  showHeadCount();
+}
+
+function showHeadCount() {
+  const n = Number(state.settings.people) || 0;
+  els.peopleOut.textContent = n === 0 ? 'Surprise me' : n === 1 ? '1 person' : `${n} people`;
 }
 
 // --------------------------------------------------------------------- input
@@ -89,62 +107,152 @@ function loadImage(src, crossOrigin) {
   });
 }
 
-async function setSubject(src, label, { sample = false, note = 'Saved on this device' } = {}) {
-  state.subjectImage = await loadImage(src);
-  state.isSample = sample;
-  state.keyColor = null;
-  state.detectedKey = null;
-  els.subjectThumb.src = src;
-  els.subjectName.textContent = label;
-  els.subjectNote.textContent = note;
-  els.subjectPreview.hidden = false;
-  els.drop.classList.add('has-subject');
-  updateSwatch();
+const readFile = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = () => reject(new Error('could not read that file'));
+  reader.readAsDataURL(file);
+});
+
+/**
+ * Shrink a photo before it goes into storage. Phone photos are far bigger than
+ * the keyer needs, and a handful of them at full size would blow the ~5MB
+ * localStorage quota on the first upload.
+ */
+async function normalizeForStorage(dataUrl) {
+  const img = await loadImage(dataUrl);
+  const scale = Math.min(1, MAX_STORED_SIDE / Math.max(img.width, img.height));
+  if (scale === 1 && dataUrl.length < 600_000) return dataUrl;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.92);
 }
 
-async function handleFile(file) {
-  if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    setStatus('That needs to be an image file.', true);
+async function addFiles(fileList) {
+  const files = [...(fileList || [])].filter((f) => f.type.startsWith('image/'));
+  const rejected = [...(fileList || [])].length - files.length;
+  if (!files.length) {
+    setStatus(rejected ? 'Those need to be image files.' : '', !!rejected);
     return;
   }
-  try {
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('could not read that file'));
-      reader.readAsDataURL(file);
-    });
-    const stored = writeStore(STORE_KEY, dataUrl);
-    await setSubject(dataUrl, file.name, {
-      note: stored ? 'Saved on this device' : 'Too large to save — it will be gone on reload',
-    });
-    setStatus('');
-    if (state.landmark) draw();
-  } catch (err) {
-    setStatus(`Could not open that photo: ${err.message}`, true);
+
+  setStatus(files.length > 1 ? `Adding ${files.length} photos…` : 'Adding photo…');
+  let added = 0;
+  let overflowed = false;
+
+  for (const file of files) {
+    try {
+      const src = await normalizeForStorage(await readFile(file));
+      const entry = { id: `p${Date.now()}${Math.random().toString(36).slice(2, 7)}`, name: file.name, src };
+      state.library.push(entry);
+      if (!saveLibrary()) {
+        state.library.pop();
+        overflowed = true;
+        break;
+      }
+      added++;
+    } catch (err) {
+      setStatus(`Could not open ${file.name}: ${err.message}`, true);
+    }
   }
+
+  await renderLibrary();
+  setStatus(overflowed
+    ? `Added ${added}. No room left in this browser's storage — remove a photo to add more.`
+    : (rejected ? `Added ${added}. Skipped ${rejected} non-image file${rejected > 1 ? 's' : ''}.` : ''), overflowed);
+  if (state.landmark) recast();
 }
 
-function clearSubject() {
-  state.subjectImage = null;
-  state.isSample = false;
-  state.keyColor = null;
-  state.detectedKey = null;
-  els.subjectPreview.hidden = true;
-  els.drop.classList.remove('has-subject');
-  els.file.value = '';
-  els.tweaks.hidden = true;
-  try { localStorage.removeItem(STORE_KEY); } catch { /* nothing to clean up */ }
-  updateSwatch();
-  if (state.landmark) draw();
+async function addSample() {
+  if (state.library.some((e) => e.sample)) return;
+  state.library.push({ id: 'sample', name: 'Sample cut-out', src: SAMPLE, sample: true });
+  saveLibrary();
+  await renderLibrary();
+  setStatus('');
+  if (state.landmark) recast();
+}
+
+function removeEntry(id) {
+  state.library = state.library.filter((e) => e.id !== id);
+  state.images.delete(id);
+  state.cutouts.delete(id);
+  saveLibrary();
+  renderLibrary();
+  if (state.landmark) recast();
+}
+
+function clearLibrary() {
+  state.library = [];
+  state.images.clear();
+  state.cutouts.clear();
+  saveLibrary();
+  renderLibrary();
+  if (state.landmark) recast();
+}
+
+/** Draw the thumbnail strip, and make sure every photo is decoded and ready. */
+async function renderLibrary() {
+  els.library.textContent = '';
+
+  for (const entry of state.library) {
+    const item = document.createElement('li');
+    item.className = 'library-item';
+
+    const thumb = document.createElement('img');
+    thumb.src = entry.src;
+    thumb.alt = entry.name;
+    thumb.loading = 'lazy';
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'remove';
+    remove.title = `Remove ${entry.name}`;
+    remove.setAttribute('aria-label', `Remove ${entry.name}`);
+    remove.textContent = '×';
+    remove.addEventListener('click', () => removeEntry(entry.id));
+
+    item.append(thumb, remove);
+    els.library.append(item);
+  }
+
+  const count = state.library.length;
+  els.libraryPanel.hidden = count === 0;
+  els.drop.classList.toggle('has-subject', count > 0);
+  els.libraryCount.textContent = count === 1 ? '1 photo' : `${count} photos`;
+  els.tweaks.hidden = count === 0;
+
+  await Promise.all(state.library.map(async (entry) => {
+    if (state.images.has(entry.id)) return;
+    try {
+      state.images.set(entry.id, await loadImage(entry.src));
+    } catch {
+      state.library = state.library.filter((e) => e.id !== entry.id);
+      saveLibrary();
+    }
+  }));
 }
 
 // -------------------------------------------------------------------- keying
 
-function buildCutout() {
+const cutoutSignature = () => {
   const { tolerance, softness, shrink, spill } = state.settings;
-  const result = cutout(state.subjectImage, {
+  return [tolerance, softness, shrink, spill, state.keyColor?.join('-') ?? 'auto'].join('|');
+};
+
+/** Cached per photo: re-keying every image on every slider nudge is too slow. */
+function cutoutFor(id) {
+  const image = state.images.get(id);
+  if (!image) return null;
+
+  const sig = cutoutSignature();
+  const cached = state.cutouts.get(id);
+  if (cached && cached.sig === sig) return cached.canvas;
+
+  const { tolerance, softness, shrink, spill } = state.settings;
+  const result = cutout(image, {
     tolerance: Number(tolerance),
     softness: Number(softness),
     shrink: Number(shrink),
@@ -154,19 +262,17 @@ function buildCutout() {
   });
   state.detectedKey = result.keyColor;
   updateSwatch();
+  state.cutouts.set(id, { sig, canvas: result.canvas });
   return result.canvas;
 }
 
-function toHex(rgb) {
-  return '#' + rgb.map((c) => clamp255(c).toString(16).padStart(2, '0')).join('');
-}
-
 const clamp255 = (c) => Math.max(0, Math.min(255, Math.round(c)));
+const toHex = (rgb) => '#' + rgb.map((c) => clamp255(c).toString(16).padStart(2, '0')).join('');
 
 function updateSwatch() {
   const key = state.keyColor || state.detectedKey;
   els.swatch.style.background = key ? toHex(key) : 'transparent';
-  els.swatch.title = key ? `${state.keyColor ? 'Chosen' : 'Detected'} key colour ${toHex(key)}` : '';
+  els.swatch.title = key ? `${state.keyColor ? 'Chosen' : 'Detected'} key color ${toHex(key)}` : '';
   if (key) els.pickKey.value = toHex(key);
 }
 
@@ -174,16 +280,45 @@ function updateSwatch() {
 
 function draw() {
   if (!state.landmark || !state.bgImage) return;
+
+  const subjects = state.cast
+    .map((id, i) => ({ cutout: cutoutFor(id), placement: state.placements[i] }))
+    .filter((s) => s.cutout);
+
   renderScene(els.canvas, {
     background: state.bgImage,
-    cutout: state.subjectImage ? buildCutout() : null,
+    subjects,
     landmark: state.landmark,
+    sentence: state.sentence,
     settings: state.settings,
-    placement: state.placement,
   });
+
   els.stage.hidden = false;
   els.download.disabled = false;
-  els.tweaks.hidden = !state.subjectImage;
+}
+
+/** Re-pick who is in the shot, keeping the same place and sentence. */
+function recast() {
+  const wanted = Number(state.settings.people) || 0;
+  const available = state.library.length;
+  // An explicit count is taken at its word, even past the number of photos on
+  // hand; "surprise me" never asks for more people than there are photos.
+  const count = available === 0 ? 0
+    : wanted > 0 ? wanted
+    : 1 + Math.floor(Math.random() * Math.min(3, available));
+
+  // Distinct photos first. If more people were asked for than there are photos,
+  // the extras are repeats — asking for three with one photo should still give three.
+  const pool = [...state.library];
+  const cast = [];
+  while (cast.length < count) {
+    if (!pool.length) pool.push(...state.library);
+    cast.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0].id);
+  }
+
+  state.cast = cast;
+  state.placements = randomPlacements(cast.length);
+  draw();
 }
 
 // ------------------------------------------------------------------- actions
@@ -207,16 +342,17 @@ async function generate() {
   try {
     state.bgImage = await loadImage(landmark.url, true);
     state.landmark = landmark;
-    state.placement = randomPlacement();
+    state.sentence = makeSentence(state.phrasebook, landmark);
     writeStore(RECENT_KEY, [landmark.name, ...readStore(RECENT_KEY, []).filter((n) => n !== landmark.name)].slice(0, 8));
 
-    draw();
+    recast();
 
+    const full = `${landmark.the ? 'The ' : ''}${landmark.name}`;
     els.credit.innerHTML =
-      `<strong>${escapeHtml(landmark.name)}</strong>, ${escapeHtml(landmark.place)} · photo by ` +
+      `<strong>${escapeHtml(full)}</strong>, ${escapeHtml(landmark.place)} · photo by ` +
       `${escapeHtml(landmark.credit)} (${escapeHtml(landmark.license)}) via ` +
       `<a href="${encodeURI(landmark.source)}" target="_blank" rel="noopener">Wikimedia Commons</a>`;
-    setStatus(state.subjectImage ? '' : 'Add a green screen photo to put someone in the shot.');
+    setStatus(state.library.length ? '' : 'Add a green screen photo to put someone in the shot.');
   } catch (err) {
     setStatus(`Could not load that backdrop (${err.message}). Hit generate again for a different one.`, true);
   } finally {
@@ -248,28 +384,27 @@ function escapeHtml(value) {
 
 // -------------------------------------------------------------------- wiring
 
+const openPicker = () => els.file.click();
+
 els.drop.addEventListener('click', (e) => {
   if (e.target.closest('button')) return;
-  els.file.click();
+  openPicker();
 });
 els.drop.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
-    els.file.click();
+    openPicker();
   }
 });
-els.file.addEventListener('change', (e) => handleFile(e.target.files[0]));
-els.clear.addEventListener('click', clearSubject);
-
-els.useSample.addEventListener('click', async (e) => {
+els.file.addEventListener('change', async (e) => {
+  await addFiles(e.target.files);
+  els.file.value = '';
+});
+els.addMore.addEventListener('click', openPicker);
+els.clearAll.addEventListener('click', clearLibrary);
+els.useSample.addEventListener('click', (e) => {
   e.stopPropagation();
-  try {
-    await setSubject(SAMPLE, 'Sample cut-out', { sample: true, note: 'Demo subject, not saved' });
-    setStatus('');
-    if (state.landmark) draw();
-  } catch {
-    setStatus('The sample image is missing from this copy of the app.', true);
-  }
+  addSample().catch(() => setStatus('The sample image is missing from this copy of the app.', true));
 });
 
 for (const type of ['dragenter', 'dragover']) {
@@ -284,7 +419,7 @@ for (const type of ['dragleave', 'drop']) {
     els.drop.classList.remove('dragging');
   });
 }
-els.drop.addEventListener('drop', (e) => handleFile(e.dataTransfer.files[0]));
+els.drop.addEventListener('drop', (e) => addFiles(e.dataTransfer.files));
 
 els.generate.addEventListener('click', generate);
 els.download.addEventListener('click', download);
@@ -299,7 +434,13 @@ for (const [key, input] of Object.entries(controls)) {
   input.addEventListener('input', () => {
     state.settings[key] = input.type === 'checkbox' ? input.checked : Number(input.value);
     writeStore(SETTINGS_KEY, state.settings);
-    queueDraw();
+    // Changing the head count has to re-cast; everything else just redraws.
+    if (key === 'people') {
+      showHeadCount();
+      recast();
+    } else {
+      queueDraw();
+    }
   });
 }
 
@@ -317,12 +458,12 @@ $('reset-key').addEventListener('click', () => {
 });
 
 $('reset-tweaks').addEventListener('click', () => {
-  state.settings = { ...defaultSettings, caption: state.settings.caption };
+  state.settings = { ...defaultSettings, caption: state.settings.caption, captionTop: state.settings.captionTop };
   state.keyColor = null;
   syncControls();
   writeStore(SETTINGS_KEY, state.settings);
   updateSwatch();
-  queueDraw();
+  recast();
 });
 
 // ---------------------------------------------------------------- start-up
@@ -330,9 +471,26 @@ $('reset-tweaks').addEventListener('click', () => {
 state.settings = { ...defaultSettings, ...readStore(SETTINGS_KEY, {}) };
 syncControls();
 
-const savedSubject = readStore(STORE_KEY, null);
-if (typeof savedSubject === 'string') {
-  setSubject(savedSubject, 'Your saved photo').catch(() => {
-    try { localStorage.removeItem(STORE_KEY); } catch { /* ignore */ }
-  });
+state.library = readStore(LIBRARY_KEY, []).filter((e) => e && e.id && e.src);
+
+// One photo saved by an earlier version of the app becomes the first library entry.
+const legacy = readStore(LEGACY_KEY, null);
+if (typeof legacy === 'string' && !state.library.length) {
+  state.library.push({ id: 'legacy', name: 'Your saved photo', src: legacy });
+  saveLibrary();
 }
+try { localStorage.removeItem(LEGACY_KEY); } catch { /* nothing to clean up */ }
+
+renderLibrary();
+
+loadPhrasebook()
+  .then((book) => {
+    state.phrasebook = book;
+    if (book.missing.length) {
+      setStatus(`No word list found for [${book.missing.join('], [')}] — those templates are skipped.`, true);
+    }
+  })
+  .catch(() => {
+    state.phrasebook = FALLBACK;
+    setStatus('Could not read words/ — using a few built-in sentences. Serve the folder over http, not file://.', true);
+  });
